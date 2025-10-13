@@ -2,80 +2,89 @@ using UnityEngine;
 
 public class PlayerController : MonoBehaviour
 {
+    [Header("이동 설정")]
     public float moveSpeed = 5.0f;
-    private float baseSpeed;
-    
-    private Animator animator;
-    private bool isRunning = false;
 
+    [Header("점프 설정")]
+    public float jumpForce = 10.0f;
+    
+    private Vector3 startPosition;
+    
+    private Rigidbody2D rb;
+    private bool isGrounded = false;
+    private int score = 0;  // 점수 추가
+    
     void Start()
     {
-        animator = GetComponent<Animator>();
-        baseSpeed = moveSpeed;
-
-        if (animator != null)
-            Debug.Log("Animator 컴포넌트를 찾았습니다!");
-        else
-            Debug.LogError("Animator 컴포넌트가 없습니다!");
+        rb = GetComponent<Rigidbody2D>();
+        
+        // 게임 시작 시 위치를 저장 - 새로 추가!
+        startPosition = transform.position;
+        Debug.Log("시작 위치 저장: " + startPosition);
     }
-
+    
     void Update()
     {
-        // === Shift 달리기 ===
-        if (Input.GetKeyDown(KeyCode.LeftShift))
+        // 좌우 이동
+        float moveX = 0f;
+        if (Input.GetKey(KeyCode.A)) moveX = -1f;
+        if (Input.GetKey(KeyCode.D)) moveX = 1f;
+        
+        rb.velocity = new Vector2(moveX * moveSpeed, rb.velocity.y);
+        
+        // 점프 (지난 시간에 배운 내용)
+        if (Input.GetKeyDown(KeyCode.Space) && isGrounded)
         {
-            moveSpeed = baseSpeed * 2f;
-            isRunning = true;
-            Debug.Log("달리기 모드!");
+            rb.velocity = new Vector2(rb.velocity.x, jumpForce);
         }
-        else if (Input.GetKeyUp(KeyCode.LeftShift))
-        {
-            moveSpeed = baseSpeed;
-            isRunning = false;
-        }
-
-        // === 이동 ===
-        Vector3 movement = Vector3.zero;
-
-        if (Input.GetKey(KeyCode.A))
-        {
-            movement += Vector3.left;
-            transform.localScale = new Vector3(1, 1, 1);
-        }
-        if (Input.GetKey(KeyCode.D))
-        {
-            movement += Vector3.right;
-            transform.localScale = new Vector3(-1, 1, 1);
-        }
-
-        if (movement != Vector3.zero)
-            transform.Translate(movement * moveSpeed * Time.deltaTime);
-
-        float currentSpeed = movement != Vector3.zero ? moveSpeed : 0f;
-
-        // === 점프 입력 ===
-        if (Input.GetKeyDown(KeyCode.Space))
-        {
-            animator.SetBool("isJumping", true);
-            Debug.Log("점프!");
-        }
-
-        // === 애니메이션 파라미터 전달 ===
-        if (animator != null)
-        {
-            animator.SetFloat("Speed", currentSpeed);
-        }
-        if (Input.GetKeyDown(KeyCode.Space))
-{
-        if (animator != null)
-        {
-            animator.SetBool("Jump", true);
-            Debug.Log("점프!");
-        }
-}
     }
+    
+    // 바닥 충돌 감지 (Collision)
+    void OnCollisionEnter2D(Collision2D collision)
+    {
+        if (collision.gameObject.CompareTag("Ground"))
+        {
+            isGrounded = true;
+        }// 장애물 충돌 감지 - 새로 추가!
+        if (collision.gameObject.CompareTag("Obstacle"))
+        {
+            Debug.Log("⚠️ 장애물 충돌! 시작 지점으로 돌아갑니다.");
 
-    // Jump 애니메이션 끝나면 Idle/Run으로 복귀
-    // 애니메이션 이벤트(Animation Event)에서 호출
+            // 시작 위치로 순간이동
+            transform.position = startPosition;
 
+            // 속도 초기화 (안 하면 계속 날아감)
+            rb.velocity = new Vector2(0, 0);
+        }
+        
+        
+    }
+    
+    void OnCollisionExit2D(Collision2D collision)
+    {
+        if (collision.gameObject.CompareTag("Ground"))
+        {
+            isGrounded = false;
+        }
+    }
+    
+    // 아이템 수집 감지 (Trigger)
+    void OnTriggerEnter2D(Collider2D other)
+    {
+        if (other.CompareTag("Coin"))
+        {
+            score++;  // 점수 증가
+            Debug.Log("코인 획득! 현재 점수: " + score);
+            Destroy(other.gameObject);  // 코인 제거
+        }
+            // 골 도달 - 새로 추가!
+        if (other.CompareTag("Goal"))
+        {
+            Debug.Log("🎉🎉🎉 게임 클리어! 🎉🎉🎉");
+            Debug.Log("최종 점수: " + score + "점");
+            
+            // 캐릭터 조작 비활성화
+            enabled = false;
+        }
+    }
 }
